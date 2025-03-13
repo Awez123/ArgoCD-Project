@@ -50,6 +50,7 @@ spec:
                 script {
                     timeout(time: 5, unit: 'MINUTES') {
                         waitForQualityGate abortPipeline: true
+                        // getting the quality gate status
                     }
                 }
             }
