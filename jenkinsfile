@@ -20,7 +20,7 @@ spec:
         }
     }
     environment {
-        SONARQUBE_URL = 'http://sonarqube-sonarqube.sonar:9000'  // Internal SonarQube URL
+        SONARQUBE_URL = 'http://sonarqube-sonarqube.sonarqube:9000'  // Internal SonarQube URL
     }
     stages {
         stage('Checkout Code') {
@@ -31,8 +31,8 @@ spec:
         stage('SonarQube Analysis') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {  // Avoid infinite waiting
-                    withSonarQubeEnv('SonarQube') {  
-                        withCredentials([string(credentialsId: 'Sonarqube-scan', variable: 'SONAR_TOKEN')]) {
+                    withSonarQubeEnv('sonarqube-scan') {  
+                        withCredentials([string(credentialsId: 'sonarscan', variable: 'SONAR_TOKEN')]) {
                             sh '''
                             sonar-scanner \
                               -Dsonar.projectKey=weather-app \
