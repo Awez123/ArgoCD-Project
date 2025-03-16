@@ -6,21 +6,30 @@ apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    jenkins/label: sonar-agent
+    jenkins/label: build-agent
 spec:
   containers:
+    - name: docker
+      image: docker:latest
+      command:
+        - cat
+      tty: true
     - name: sonar-scanner
       image: sonarsource/sonar-scanner-cli:latest
       command:
         - cat
       tty: true
             """
-            defaultContainer 'sonar-scanner'
+            defaultContainer 'docker'
             idleMinutes 10
         }
     }
     environment {
-        SONARQUBE_URL = 'http://sonarqube-sonarqube.sonar.svc.cluster.local:9000'  // Correct internal SonarQube URL
+        SONARQUBE_URL = 'http://sonarqube-sonarqube.sonar.svc.cluster.local:9000'  // Internal SonarQube URL
+        NEXUS_URL = 'http://nexus-nexus-repository-manager.nexus:8082' // Nexus Docker Registry URL
+        IMAGE_NAME = 'weather-app'  // Change this to your app name
+        IMAGE_TAG = 'latest'
+        NEXUS_REPO = 'docker-repo'  // Change this to your Nexus repo name
     }
     stages {
         stage('Checkout Code') {
@@ -28,6 +37,7 @@ spec:
                 git branch: 'main', url: 'https://github.com/king04aman/todo-list.git'
             }
         }
+        
         stage('SonarQube Analysis') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
@@ -45,6 +55,7 @@ spec:
                 }
             }
         }
+        
         stage('Quality Gate') {
             steps {
                 script {
@@ -54,6 +65,40 @@ spec:
                             error "Pipeline failed due to SonarQube Quality Gate: ${qg.status}"
                         }
                     }
+                }
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh '''
+                    docker build -t $NEXUS_URL/$NEXUS_REPO/$IMAGE_NAME:$IMAGE_TAG .
+                    '''
+                }
+            }
+        }
+
+        stage('Push Image to Nexus') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'nexus-cred', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                    script {
+                        sh '''
+                        docker login -u $NEXUS_USER -p $NEXUS_PASS $NEXUS_URL
+                        docker push $NEXUS_URL/$NEXUS_REPO/$IMAGE_NAME:$IMAGE_TAG
+                        docker logout $NEXUS_URL
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    sh '''
+                    kubectl set image deployment/weather-app weather-app=$NEXUS_URL/$NEXUS_REPO/$IMAGE_NAME:$IMAGE_TAG -n dev
+                    '''
                 }
             }
         }
