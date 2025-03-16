@@ -16,11 +16,11 @@ spec:
       tty: true
             """
             defaultContainer 'sonar-scanner'
-            idleMinutes 10  // Avoid frequent pod deletion
+            idleMinutes 10
         }
     }
     environment {
-        SONARQUBE_URL = 'http://sonarqube-sonarqube.sonar:9000'  // Internal SonarQube URL
+        SONARQUBE_URL = 'http://sonarqube-sonarqube.sonar.svc.cluster.local:9000'  // Correct internal SonarQube URL
     }
     stages {
         stage('Checkout Code') {
@@ -30,9 +30,9 @@ spec:
         }
         stage('SonarQube Analysis') {
             steps {
-                timeout(time: 5, unit: 'MINUTES') {  // Avoid infinite waiting
-                    withSonarQubeEnv('sonarqube-scan') {  
-                        withCredentials([string(credentialsId: 'sonarscan', variable: 'SONAR_TOKEN')]) {
+                timeout(time: 5, unit: 'MINUTES') {
+                    withCredentials([string(credentialsId: 'sonarscan', variable: 'SONAR_TOKEN')]) {
+                        withSonarQubeEnv('sonarqube-scan') {  
                             sh '''
                             sonar-scanner \
                               -Dsonar.projectKey=weather-app \
@@ -49,8 +49,10 @@ spec:
             steps {
                 script {
                     timeout(time: 5, unit: 'MINUTES') {
-                        waitForQualityGate abortPipeline: true
-                        // getting the quality gate status
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Pipeline failed due to SonarQube Quality Gate: ${qg.status}"
+                        }
                     }
                 }
             }
