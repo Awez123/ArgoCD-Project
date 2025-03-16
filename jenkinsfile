@@ -20,7 +20,7 @@ spec:
         }
     }
     environment {
-        SONARQUBE_URL = 'http://sonarqube-sonarqube.sonarqube:9000'  // Internal SonarQube URL
+        SONARQUBE_URL = 'http://sonarqube-sonarqube.sonar:9000'  // Internal SonarQube URL
     }
     stages {
         stage('Checkout Code') {
